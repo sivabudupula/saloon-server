@@ -5,6 +5,7 @@ const purchaseProductSchema = new mongoose.Schema({
     supplier: String,
     purchaseType: String,
     NoOfProducts: String,
+    companyName:String,
    
     
     tableData: [{
