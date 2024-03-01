@@ -1,7 +1,11 @@
 const Customer = require('../models/CustomerModel');
+
+const Register = require('../models/RegisterModel'); // Import the Register model
+
 const path = require('path');
 exports.CreateCustomer= async (req, res) => {
     try {
+      const userId = req.user.id;
       const { name, dob,email, phone, address } = req.body;
       const newCustomer = new Customer({
         name,
@@ -10,6 +14,7 @@ exports.CreateCustomer= async (req, res) => {
         phone,
         address,
         profilePhoto: req.file ? req.file.path : null,
+        createdBy:userId
     });
       await newCustomer.save();
       res.status(201).json(newCustomer);
@@ -19,9 +24,19 @@ exports.CreateCustomer= async (req, res) => {
     }
   };
   
-  exports.ReadCustomer= async (req, res) => {
+  // exports.ReadCustomer= async (req, res) => {
+  //   try {
+  //     const customers = await Customer.find();
+  //     res.json(customers);
+  //   } catch (error) {
+  //     console.error('Error fetching customers:', error);
+  //     res.status(500).json({ error: 'Error fetching customers' });
+  //   }
+  // };
+
+  exports.ReadCustomer = async (req, res) => {
     try {
-      const customers = await Customer.find();
+      const customers = await Customer.find().populate('createdBy', 'username');
       res.json(customers);
     } catch (error) {
       console.error('Error fetching customers:', error);

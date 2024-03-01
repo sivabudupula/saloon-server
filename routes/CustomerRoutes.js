@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer'); 
 const CustomerController = require('../controllers/CustomerController');
-
+const Middleware = require('../controllers/Middleware'); 
 
 
 const storage = multer.diskStorage({
@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
   const upload = multer({ storage });
   
 // Define routes for appointments
-router.post('/customers',upload.single('profilePhoto'), CustomerController.CreateCustomer);
+router.post('/customers',upload.single('profilePhoto'),Middleware, CustomerController.CreateCustomer);
 router.put('/customers/:id', CustomerController.UpdateCustomer);
 router.get('/customers', CustomerController.ReadCustomer);
 
