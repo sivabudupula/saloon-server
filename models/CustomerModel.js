@@ -31,8 +31,9 @@ const mongoose = require('mongoose');
     items: [Object], // An array of item objects
     discountPercent: Number,
     discountAmount: Number,
+    gstPercent: Number, // Add gstPercent field
+    gstNumber: String, // Add gstNumber field
     paymentMethod:String,
-    gstPercent:String,
     totalAmount: Number,
   }], 
 });
