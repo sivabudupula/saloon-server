@@ -19,7 +19,12 @@ const registerSchema = new mongoose.Schema({
     confirmpassword : {
         type : String,
         required : true,
-    }
+    },
+    
+    role : {
+        type : String,
+        default :"admin" ,
+    },
   })
   
   const Register = mongoose.model('Register', registerSchema);

@@ -14,6 +14,7 @@ const employeeSchema = new mongoose.Schema({
     panNumber: String,
     filePath: String,
     fileData: Buffer,
+    isActive:{type:Boolean,default:true},
   });
 
   module.exports  = mongoose.model('Employee', employeeSchema);
