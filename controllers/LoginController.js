@@ -105,10 +105,11 @@ exports.CreateLogin = async (req, res) => {
         }
 
         // If user is found and credentials are correct, generate token
+
+        // If user is found and credentials are correct, generate token
         let payload = {
-            user: {
-                id: user.id,
-                role: user.role
+            user:{
+                id : exist.id
             }
         };
 
