@@ -100,4 +100,31 @@ exports.CreateEmployee = [
     }
   };
   
+  exports.ActivateEmployee = async (req, res) => {
+    const { id } = req.params;
+    try {
+      const updatedEmployee = await Employee.findByIdAndUpdate(id, { isActive: true }, { new: true });
+      if (!updatedEmployee) {
+        return res.status(404).json({ error: 'Employee not found.' });
+      }
+      res.json(updatedEmployee);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'An error occurred while activating the employee.' });
+    }
+  };
+  
+  exports.DeactivateEmployee = async (req, res) => {
+    const { id } = req.params;
+    try {
+      const updatedEmployee = await Employee.findByIdAndUpdate(id, { isActive: false }, { new: true });
+      if (!updatedEmployee) {
+        return res.status(404).json({ error: 'Employee not found.' });
+      }
+      res.json(updatedEmployee);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'An error occurred while deactivating the employee.' });
+    }
+  };
   

@@ -6,7 +6,8 @@ const EmployeeController = require('../controllers/EmployeeController');
 router.post('/employees', EmployeeController.CreateEmployee);
  router.put('/employees/:id', EmployeeController.UpdateEmployee);
 router.get('/employees', EmployeeController.ReadEmployee);
-router.delete('/employees/:id', EmployeeController.DeleteEmployee);
+router.put('/employees/activate/:id', EmployeeController.ActivateEmployee);
+router.put('/employees/deactivate/:id', EmployeeController.DeactivateEmployee);
 
 module.exports = router;
 

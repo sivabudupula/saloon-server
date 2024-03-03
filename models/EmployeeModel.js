@@ -14,6 +14,9 @@ const employeeSchema = new mongoose.Schema({
     panNumber: String,
     filePath: String,
     fileData: Buffer,
+     // Other fields...
+  isActive: { type: Boolean, default: true }, // New field to track activation status
+
   });
 
   module.exports  = mongoose.model('Employee', employeeSchema);
