@@ -1,0 +1,1294 @@
+import React, { useState, useEffect } from "react";
+import "./Calendar.css";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import interactionPlugin from "@fullcalendar/interaction";
+import bootstrapPlugin from "@fullcalendar/bootstrap";
+
+
+const Calendar = () => {
+  const [loading, setLoading] = useState(true);
+  const [loginData, setLoginData] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [loggedInEmployeeOne, setLoggedInEmployeeOne] = useState(null);
+  const [daysInMonth, setDaysInMonth] = useState(0);
+  const [loggedInEmployee, setLoggedInEmployee] = useState(null);
+  const [, /*enteredId*/ setEnteredId] = useState("");
+  const [leaveData, setLeaveData] = useState([]);
+  const [totalHolidaysData, setTotalHolidaysData] = useState([]);
+  const [sundaysCount, setSundaysCount] = useState(0);
+  const [currentMonth, setCurrentMonth] = useState("");
+  const [loginDataCount, setLoginDataCount] = useState(loginData.length);
+  const [leaveDataCount, setLeaveDataCount] = useState(leaveData.length);
+  const [totalHolidaysDataCount, setTotalHolidaysDataCount] = useState(
+    totalHolidaysData.length
+  );
+
+  useEffect(() => {
+    const generateCalendar = () => {
+      const currentDate = new Date();
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const firstDayOfMonth = new Date(year, month, 1);
+      const lastDayOfMonth = new Date(year, month + 1, 0);
+
+      let sundaysCount = 0;
+      let daysInMonth = lastDayOfMonth.getDate(); // Get the total number of days in the month
+      let currentDay = firstDayOfMonth;
+
+      while (currentDay <= lastDayOfMonth) {
+        if (currentDay.getDay() === 0) {
+          // Sunday is represented by 0 in JavaScript Date objects
+          sundaysCount++;
+        }
+        currentDay.setDate(currentDay.getDate() + 1);
+      }
+      // Update both daysInMonth and sundaysCount states
+      setDaysInMonth(daysInMonth);
+      setSundaysCount(sundaysCount);
+      setCurrentMonth(currentDate.toLocaleString("default", { month: "long" }));
+    };
+
+    generateCalendar();
+  }, []);
+
+  const handleDatesSet = (arg) => {
+    const firstDayOfMonth = arg.view.currentStart;
+    const monthName = firstDayOfMonth.toLocaleString("default", {
+      month: "long",
+    });
+    setCurrentMonth(monthName);
+    // Update current session data based on the new month
+    const year = firstDayOfMonth.getFullYear();
+    const month = firstDayOfMonth.getMonth();
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+
+    let sundaysCount = 0;
+    let daysInMonth = lastDayOfMonth.getDate(); // Get the total number of days in the month
+    let currentDay = new Date(firstDayOfMonth);
+
+    while (currentDay <= lastDayOfMonth) {
+      if (currentDay.getDay() === 0) {
+        // Sunday is represented by 0 in JavaScript Date objects
+        sundaysCount++;
+      }
+      currentDay.setDate(currentDay.getDate() + 1);
+    }
+
+    // Update both daysInMonth and sundaysCount states
+    setDaysInMonth(daysInMonth);
+    setSundaysCount(sundaysCount);
+
+    // Here you can fetch and update loginData, leaveData, and totalHolidaysData
+    // based on the new month and year
+    fetchCalendarData(year, month);
+  };
+
+  useEffect(() => {
+    const generateCalendarEvents = () => {
+      const events = loginData.map(({ endDate, totalWorkTime }) => {
+        const dbEndDate = new Date(endDate);
+        const localEndDate = new Date(
+          dbEndDate.getFullYear(),
+          dbEndDate.getMonth(),
+          dbEndDate.getDate(),
+          dbEndDate.getHours(),
+          dbEndDate.getMinutes(),
+          dbEndDate.getSeconds()
+        );
+
+        return {
+          title: `Present: ${totalWorkTime}`,
+          start: localEndDate,
+          className:
+            localEndDate <= new Date() ? "present-event" : "absent-event",
+        };
+      });
+
+      // Transform leave data into calendar events
+      const leaveEvents = leaveData.map(({ fromDate, toDate }) => {
+        const start = new Date(fromDate);
+        const end = new Date(toDate);
+
+        // Add one day to include the end date
+        end.setDate(end.getDate() );
+
+        return {
+          title: "Leave",
+          start,
+          end,
+          className: "leave-event",
+        };
+      });
+
+      // Transform holidays data into calendar events
+      const holidayEvents = totalHolidaysData.map(({ date, description }) => ({
+        title: description,
+        start: new Date(date),
+        className: "holiday-event",
+      }));
+
+      const currentDate = new Date();
+      const previousDates = getDatesArray(
+        new Date(currentDate.getFullYear(), currentDate.getMonth(), 1),
+        currentDate
+      );
+
+      const absentEvents = previousDates
+        .filter((date) => !hasRecordsForDate(date))
+        .map((date) => ({
+          title: "Absent",
+          start: date,
+          className: "absent-event",
+        }));
+
+      setCalendarEvents([
+        ...events,
+        ...absentEvents,
+        ...leaveEvents,
+        ...holidayEvents,
+      ]);
+    };
+
+    const hasRecordsForDate = (date) => {
+      return loginData.some((record) => {
+        const recordDate = new Date(record.endDate);
+        return (
+          recordDate.getFullYear() === date.getFullYear() &&
+          recordDate.getMonth() === date.getMonth() &&
+          recordDate.getDate() === date.getDate()
+        );
+      });
+    };
+
+    generateCalendarEvents();
+  }, [loginData, leaveData, totalHolidaysData]);
+
+  const getDatesArray = (start, end) => {
+    const dates = [];
+    let currentDate = new Date(start);
+
+    while (currentDate <= end) {
+      dates.push(new Date(currentDate));
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return dates;
+  };
+
+  const fetchCalendarData = async (year, month) => {
+    try {
+      const workHoursResponse = await fetch(
+        `http://localhost:3001/workhours_data/${loggedInEmployeeOne?.employeeid}`
+      );
+      const leaveResponse = await fetch(
+        `http://localhost:5000/leave_data/${loggedInEmployeeOne?.employeeid}`
+      );
+      const holidaysResponse = await fetch(
+        `http://localhost:5000/holiday_data` // Fetch all holidays
+      );
+  
+      if (
+        !workHoursResponse.ok ||
+        !leaveResponse.ok ||
+        !holidaysResponse.ok
+      ) {
+        throw new Error("Network response was not ok.");
+      }
+  
+      const workHoursData = await workHoursResponse.json();
+      const leaveData = await leaveResponse.json();
+      const totalHolidaysData = await holidaysResponse.json(); // Parse total holidays response
+      setLoginData(workHoursData);
+      setLeaveData(leaveData);
+      setTotalHolidaysData(totalHolidaysData); // Set total holidays data
+      setLoginDataCount(workHoursData.length); // Set login data count
+      setLeaveDataCount(leaveData.length); // Set leave data count
+      setTotalHolidaysDataCount(totalHolidaysData.length); // Set total holidays data count
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching calendar data:", error);
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    if (loggedInEmployeeOne && loggedInEmployeeOne.employeeid) {
+      fetchCalendarData();
+    }
+  }, [loggedInEmployeeOne]);
+  
+
+  useEffect(() => {
+    // Update the loginDataCount whenever loginData changes
+    setLoginDataCount(loginData.length);
+  }, [loginData]);
+
+  useEffect(() => {
+    // Update the leaveDataCount whenever leaveData changes
+    setLeaveDataCount(leaveData.length);
+  }, [leaveData]);
+
+  useEffect(() => {
+    // Update the totalHolidaysDataCount whenever totalHolidaysData changes
+    setTotalHolidaysDataCount(totalHolidaysData.length);
+  }, [totalHolidaysData]);
+
+  useEffect(() => {
+    const fetchLoggedInEmployee = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/LoggedInEmployee");
+        if (!response.ok) {
+          throw new Error("Network response was not ok.");
+        }
+        const data = await response.json();
+        setLoggedInEmployee("data", data);
+        setEnteredId(data?.employeeid || "");
+      } catch (error) {
+        console.error("Error fetching logged-in employee:", error);
+      }
+    };
+
+    fetchLoggedInEmployee();
+  }, []);
+
+  useEffect(() => {
+    setEnteredId(loggedInEmployee?.employeeid || "");
+  }, [loggedInEmployee]);
+
+  useEffect(() => {
+    const storedEmployee = localStorage.getItem("loggedInEmployee");
+    if (storedEmployee) {
+      try {
+        const parsedEmployee = JSON.parse(storedEmployee);
+        setLoggedInEmployeeOne(parsedEmployee);
+      } catch (error) {
+        console.error("Error parsing loggedInEmployee:", error);
+      }
+    } else {
+      console.log("No loggedInEmployee found in local storage");
+    }
+  }, []);
+
+  return (
+    <div className="container001">
+      <main className="main-content">
+        <div className="bottom-container">
+          <div className="bottom-container__left">
+            <div className="detail-flex">
+              <div className="cbox spending-box">
+                <div className="centered-content">
+                  <h3 className="section-header">Employee Name</h3>
+                  <h4 className="section-input">
+                    {loggedInEmployeeOne?.fullname}
+                  </h4>
+                  <hr />
+                  <h3 className="section-header">Designation</h3>
+                  <h4 className="section-input">{loggedInEmployeeOne?.role}</h4>
+                </div>
+              </div>
+              <div className="detail-box">
+                <h2 className="section-head34">Current session</h2>
+                <h3>{currentMonth}</h3>
+                <table className="table-line56 ">
+                  <tbody>
+                    <tr>
+                      <td className="tdclass">
+                        <b>{daysInMonth}</b>
+                      </td>
+
+                      <td className="tdclass">
+                        <b> {loginDataCount}</b>
+                      </td>
+                      <td className="tdclass">
+                        <b>{leaveDataCount}</b>
+                      </td>
+                      <td className="tdclass">
+                        <b>{totalHolidaysDataCount}</b>
+                      </td>
+                      <td className="tdclass">
+                        <b>{sundaysCount}</b>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="tdclass">Total No. Of Days</td>
+                      <td className="tdclass">Total No. of Worked</td>
+                      <td className="tdclass">Total No. of Leaves</td>
+                      <td className="tdclass">Total No. of Holidays</td>
+                      <td className="tdclass">Total No. of Sundays</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="overflow243">
+                {loading ? (
+                  <p>Loading...</p>
+                ) : (
+                  <FullCalendar
+                    plugins={[
+                      dayGridPlugin,
+                      timeGridPlugin,
+                      interactionPlugin,
+                      bootstrapPlugin,
+                    ]}
+                    headerToolbar={{
+                      left: "prev,next today",
+                      center: "title",
+                      right: "dayGridMonth,timeGridWeek,timeGridDay",
+                    }}
+                    events={calendarEvents}
+                    datesSet={handleDatesSet}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Calendar;
+
+
+
+
+
+
+
+
+const express = require("express");
+const bodyParser = require("body-parser");
+const mongoose = require("mongoose");
+const cors = require("cors");
+
+const app = express();
+const port = 3001;
+
+app.use(bodyParser.json());
+app.use(cors());
+
+mongoose.connect("mongodb://localhost:27017/WorkingHours", {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+
+const unifieddataSchema = new mongoose.Schema({
+  employeeId: String,
+  startTime: String,
+  startDate: String,
+  endTime: String,
+  endDate: String,
+  breakInTime: String,
+  breakOutTime: String,
+  totalWorkTime: String,
+});
+
+const unifieddata = mongoose.model("unifieddata", unifieddataSchema);
+
+app.post("/api/saveWorkHours", (req, res) => {
+  const {
+    employeeId,
+    startTime,
+    startDate,
+    endTime,
+    endDate,
+    breakInTime,
+    breakOutTime,
+    totalWorkTime ,
+  } = req.body;
+
+  const newWorkHours = new unifieddata({
+    employeeId,
+    startTime,
+    startDate,
+    endTime,
+    endDate,
+    breakInTime,
+    breakOutTime,
+    totalWorkTime,
+  });
+
+  newWorkHours
+    .save()
+    .then((savedWorkHours) => {
+      console.log("Work hours saved successfully:", savedWorkHours);
+      res.status(200).send("Work hours saved successfully");
+    })
+    .catch((err) => {
+      console.error("Error saving work hours:", err);
+      res.status(500).send("Error saving work hours");
+    });
+});
+
+app.get('/workhours_data/:employeeId', async (req, res) => {
+  const employeeId = req.params.employeeId;
+  try {
+    const workHoursData = await unifieddata.find({ employeeId }, 'endDate totalWorkTime'); // Fetch only endDate and totalWorkTime for the specified employeeId
+    res.json(workHoursData);
+  } catch (error) {
+    console.error('Error fetching work hours data:', error);
+    res.status(500).send('Error fetching work hours data');
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
+
+
+
+
+
+
+
+body, h1, h2, h3, p, ul, li {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+}
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.fc-direction-ltr {
+  direction: ltr;
+  text-align: left;
+  width: 100% !important;
+}
+.fc .fc-toolbar-title {
+  font-size: 1.75em;
+  margin: 0px;
+  color: black;
+}
+
+.bottom-container {
+  flex: 1;
+  display: flex;
+}
+.fc-direction-ltr .fc-button-group > .fc-button:not(:last-child) {
+  width: 100px;
+  border-bottom-right-radius: 0px;
+  border-top-right-radius: 0px;
+  color: white;
+  border: 1px solid white;
+}
+.fc-direction-ltr .fc-button-group > .fc-button:not(:first-child) {
+  border-bottom-left-radius: 0px;
+  border-top-left-radius: 0px;
+  margin-left: -1px;
+  width: 100px;
+  color: white;
+  border: 1px solid white;
+}
+.overflow243{
+  width: 200% !important;
+  background-color: white;
+  margin-top: 10%;
+  margin-left: -33%;
+  display: flex;
+
+}
+.fc-toolbar-chunk{
+  margin-left: -10px;
+}
+.meet{
+  width: 500px;
+  color: #007bff !important;
+  font-size: 20px;
+  text-align: center;
+  margin-left: 4%;
+  margin-top: 3%;
+}
+.p.text-gray-500 font-bold mt-10{
+  color: #007bff !important;
+  background-color: #717070 !important;
+
+
+}
+
+
+/* Add this to your stylesheet or style section */
+
+/* Styling the container */
+.items-center {
+  display: flex;
+  align-items: center;
+  margin-left: 150px;
+}
+
+/* Styling the checkbox */
+.form-checkbox {
+  appearance: none;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  height: 16px;
+  width: 16px;
+  cursor: pointer;
+  margin-left: 20px;
+}
+
+/* Styling the checked state of the checkbox */
+.form-checkbox:checked {
+  background-color: #4299e1; /* Change this color to your preferred color for checked checkboxes */
+  border-color: #4299e1; /* Match the background color for checked checkboxes */
+}
+
+/* Styling the label next to the checkbox */
+.text-gray-700 {
+  color: #4a5568; /* Adjust the color to your preferred text color */
+  font-size: 14px; /* Adjust the font size to your preferred size */
+}
+.text-gray-500{
+  color: #4a5568;
+  font-weight: 500px;
+  font-size: 26px;
+  margin-top: -16%;
+  text-align: center !important;
+  align-items: center !important;
+  margin-left: 100px;
+}
+
+.ml-2 text-gray-700 capitalize{
+  color: black !important;
+  font-size: 50px;
+}
+
+.fc-header-toolbar {
+  margin-bottom: 20px;
+}
+
+.fc-header-toolbar .fc-left,
+.fc-header-toolbar .fc-center,
+.fc-header-toolbar .fc-right {
+  display: flex;
+  justify-content: space-between;
+}
+
+.fc .fc-toolbar-main .fc-button {
+  margin-right: 5px;
+}
+
+
+
+.fc-event-time{
+  display: none;
+}
+.fc-time{
+  display: none;
+}
+.fc-title{
+  display: none;
+}
+.holiday-event {
+  background-color: yellow; /* Green color for present events */
+  color:black; /* Text color for present events */
+}
+
+.present-event {
+  background-color: green; /* Green color for present events */
+  color: white; /* Text color for present events */
+}
+
+.absent-event {
+  background-color: red; /* Red color for absent events */
+  color: white; /* Text color for absent events */
+}
+.bottom-container__left {
+  display: flex;
+  flex-direction: column;
+  
+  /* padding: 20px; */
+}
+
+.detail-flex {
+  display: inline-block;
+ 
+  justify-content: space-between;
+  width: 100%;
+}
+
+.cbox.spending-box {
+  /* width: 80%; */
+  background-color: white;
+  border: 1px;
+  border-radius: 3px;
+  padding: 8px;
+  /* margin-bottom: 7%; */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+.section-input{
+ 
+  font-size: 1rem;
+  font-weight: normal;
+}
+.section-head34{
+  color: black;
+}
+
+
+.detail-box {
+  /* width: 80%; */
+  background-color: white; 
+  border-radius: 3px;
+  padding: 8px;
+  margin-top: 2%;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); 
+}
+
+.box-transaction-box {
+  width: 165%;
+  margin-left: -67%;
+  margin-top: 2%;
+  margin-bottom: 4%;
+  background-color: white;
+  padding: 12px;
+  border-radius: 3px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+.section-header ,.span123{
+  font-size: 1.4rem;
+  font-weight: normal;
+}
+.tbody56{
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1%;
+}
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.date-selector {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.psv {
+  background-color: #007bff; 
+  color: #fff;
+  padding: 8px;
+ 
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  margin: 0 5px;
+  /* height: 30px; */
+  width: 70px;
+}
+
+.psv:hover {
+  background-color: #4093eb;
+  color: whitesmoke;
+}
+
+.table-line56 {
+  width: 100%;
+  margin-top: 20px;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid #7d7b7b;
+  height: 35px;
+  text-align: center;
+}
+
+th {
+  background-color: white;
+}
+
+.calendar-cell {
+  height: 40px;
+  position: relative;
+}
+
+.q {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.public-holiday {
+  background-color: #4dd0c1; 
+  color: #fff;
+}
+
+.weekend {
+  color: black;
+  background-color: lightgoldenrodyellow; 
+}
+
+.today {
+  border: 2px solid rgb(7, 7, 7); 
+  border-radius: 20%;
+}
+
+.q.present {
+  color: black;
+  background-color: #03f8db;
+}
+
+.q.Unpaid {
+  color:black;
+  background-color: orange;
+}
+
+.holiday {
+  background-color: rgb(206, 253, 248); 
+  color: black;
+}
+
+.calendar-cell {
+  position: relative;
+}
+
+.calendar-cell-content {
+  padding: 8px;
+}
+
+.work-from-home {
+  background-color: #f7ba5e; 
+  cursor: pointer;
+
+}
+
+.paid-leave {
+  background-color: #7ec0f6; 
+  cursor: pointer;
+
+}
+
+.present {
+  background-color: #74d3e2;
+  cursor: pointer;
+}
+
+.leave {
+  background-color: #f2aa99;
+  cursor: pointer;
+}
+
+/* Popup Styles */
+.popup-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(47, 47, 47, 0.5);
+}
+
+.popup-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+/* Button Styles */
+.popup-content button {
+  margin: 5px;
+  padding: 10px 20px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  border-radius: 4px;
+}
+
+.popup-content button.Cancel {
+  background-color: #717070;
+  color: white;
+}
+
+.popup-content button.Present {
+  background-color: #74d3e2;
+  color: #fff;
+}
+
+.popup-content button.Leave {
+  background-color: #f2aa99;
+  color: #fff;
+}
+
+.popup-content button.PaidLeave {
+  background-color: #7ec0f6;
+  color: #fff;
+}
+
+.popup-content button.WorkFromHome {
+  background-color: #f7ba5e;
+  color: #fff;
+}
+@media only screen and (max-width: 426px) {
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .bottom-container {
+    flex: 1;
+    display: flex;
+  }
+  .table-line56 {
+    width: 100%;
+    margin-top: 8px;
+    border-collapse: collapse;
+  }
+  .bottom-container__left {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    /* padding: 20px; */
+  }
+  .tdclass{
+    border: 1px solid #7d7b7b;
+    height: 28px;
+    width: 100px;
+    font-size: 11px;
+    text-align: center;
+  }
+ 
+  .detail-flex {
+    display: inline-block;
+   
+    justify-content: space-between;
+    width: 100%;
+  }
+  
+  .cbox.spending-box {
+    /* width: 80%; */
+    background-color: white;
+    border: 1px;
+    border-radius: 3px;
+    padding: 8px;
+    /* margin-bottom: 7%; */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+  .section-input{
+   
+    font-size: small;
+    font-weight: normal;
+  }
+  .section-head34{
+    color: black;
+    font-size: smaller;
+  }
+  .overflow243{
+    /* overflow: auto; */
+    width: 100%;
+  }
+  
+  .detail-box {
+    /* width: 80%; */
+    background-color: white; 
+    border-radius: 3px;
+    padding: 8px;
+    margin-top: 2%;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); 
+  }
+  .psv {
+    background-color: #007bff;
+    color: #fff;
+    padding: 4px 6px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    margin: 0 2px;
+    height: 27px;
+    width: 60px;
+    font-size: x-small;
+}
+  .thchange23{
+    font-size: 11px;
+  }
+  .tbody56{
+    width: 100%;
+    border-collapse: collapse;
+    overflow: auto;
+  }
+  .calendar-cell-content {
+    padding: 4px;
+    font-size: x-small;
+}
+  .span123{
+    font-size: small;
+  }
+  .box-transaction-box {
+    width: 100%;
+    margin-left: 0%;
+    margin-top: 2%;
+    margin-bottom: 4%;
+    background-color: white;
+    padding: 7px;
+    border-radius: 3px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2%;
+  }
+}
+
+/* Styles for screens between 427px and 769px (medium screens) */
+@media only screen and (min-width: 427px) and (max-width: 769px) {
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .bottom-container {
+    flex: 1;
+    display: flex;
+  }
+  .table-line56 {
+    width: 100%;
+    margin-top: 8px;
+    border-collapse: collapse;
+  }
+  .bottom-container__left {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    /* padding: 20px; */
+  }
+  .tdclass{
+    border: 1px solid #7d7b7b;
+    height: 35px;
+    width: 100px;
+    font-size: 13px;
+    text-align: center;
+  }
+ 
+  .detail-flex {
+    display: inline-block;
+   
+    justify-content: space-between;
+    width: 100%;
+  }
+  
+  .cbox.spending-box {
+    /* width: 80%; */
+    background-color: white;
+    border: 1px;
+    border-radius: 3px;
+    padding: 8px;
+    /* margin-bottom: 7%; */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+  .section-input{
+   
+    font-size: 16px;
+    font-weight: normal;
+  }
+  .section-head34{
+    color: black;
+    font-size: 16px;
+  }
+  .overflow243{
+    /* overflow: auto; */
+  }
+  
+  .detail-box {
+    /* width: 80%; */
+    background-color: white; 
+    border-radius: 3px;
+    padding: 8px;
+    margin-top: 2%;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); 
+  }
+  .psv {
+    background-color: #007bff;
+    color: #fff;
+    padding: 4px 10px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    margin: 0 3px;
+    
+    width: 80px;
+    font-size: small;
+}
+  .thchange23{
+    font-size: 17px;
+  }
+  .tbody56{
+    width: 100%;
+    border-collapse: collapse;
+    overflow: auto;
+  }
+  .calendar-cell-content {
+    padding: 4px;
+    /* font-size: x-small; */
+}
+  .span123{
+    font-size: 19px;
+  }
+  .box-transaction-box {
+    width: 193%;
+    margin-left: -97%;
+    margin-top: 2%;
+    margin-bottom: 2%;
+    background-color: white;
+    padding: 7px;
+    border-radius: 3px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2%;
+  }
+}
+
+
+
+
+
+
+
+
+const Holiday = require('../models/AddHolidayModel');
+
+const addHoliday = async (req, res) => {
+  const { date, description } = req.body;
+
+  try {
+    const newHoliday = new Holiday({
+      date,
+      description,
+    });
+
+    await newHoliday.save();
+
+    res.status(201).json({ success: true, message: 'Holiday added successfully' });
+  } catch (error) {
+    console.error('Error adding holiday:', error);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+const getHolidays = async (req, res) => {
+  try {
+    const holidays = await Holiday.find();
+    res.json(holidays);
+  } catch (error) {
+    console.error('Error fetching holidays:', error);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+const updateHolidays = async (req, res) => {
+  try {
+    const updatedHolidays = req.body;
+
+    const updatePromises = updatedHolidays.map(async holiday => {
+      await Holiday.findOneAndUpdate({ slno: holiday.slno }, { $set: holiday });
+    });
+
+    await Promise.all(updatePromises);
+    res.json({ success: true, message: 'Holidays updated successfully' });
+  } catch (error) {
+    console.error('Error updating holidays:', error);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+const deleteHoliday = async (req, res) => {
+  try {
+    const description = req.params.description;
+    await Holiday.findOneAndDelete({ description });
+    res.json({ success: true, message: 'Holiday deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting holiday:', error);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+const getTotalHolidaysForEmployee = async (req, res) => {
+  try {
+    const employeeId = req.params.employeeId;
+    console.log('Fetching holidays for employeeId:', employeeId);
+
+    const totalHolidays = await Holiday.countDocuments({ empId: employeeId });
+
+    res.json({ totalHolidays });
+  } catch (error) {
+    console.error('Error fetching holidays for employee:', error);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+
+const getTotalHolidays = async (req, res) => {
+      try {
+      const { year, month } = req.params;
+      const numericYear = parseInt(year);
+      const numericMonth = parseInt(month);
+
+      const holidays = await Holiday.find({
+        date: {
+          $gte: new Date(numericYear, numericMonth - 1, 1),
+          $lte: new Date(numericYear, numericMonth, 0),
+        },
+      });
+
+      const totalHolidays = holidays.length;
+
+      res.json({ totalHolidays });
+    } catch (error) {
+      console.error('Error fetching total holidays:', error);
+      res.status(500).json({ error: 'Server Error' });
+    }
+
+}
+const getTotalHolidaysByMonthYear = async (req, res) => {
+  try {
+    const { year, month } = req.params;
+    const numericYear = parseInt(year);
+    const numericMonth = parseInt(month);
+
+    const holidays = await Holiday.find({
+      date: {
+        $gte: new Date(numericYear, numericMonth - 1, 1),
+        $lte: new Date(numericYear, numericMonth, 0),
+      },
+    });
+
+    const totalHolidays = holidays.length;
+
+    res.json({ totalHolidays });
+  } catch (error) {
+    console.error('Error fetching total holidays:', error);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};
+
+
+module.exports = {
+  addHoliday,
+  getHolidays,
+  updateHolidays,
+  deleteHoliday,
+  getTotalHolidaysForEmployee,
+  getTotalHolidays,
+  getTotalHolidaysByMonthYear // Add this new function
+};
+
+
+
+
+const express = require('express');
+const router = express.Router();
+const holidayController = require('../controllers/AddHolidayController');
+
+// Define routes
+router.post('/holiday_data/add', holidayController.addHoliday);
+router.get('/holiday_data', holidayController.getHolidays);
+router.put('/holiday_data', holidayController.updateHolidays);
+router.delete('/holiday_data/:description', holidayController.deleteHoliday);
+router.get('/total_holidays', holidayController.getTotalHolidays);
+
+
+module.exports = router;
+
+
+
+
+
+
+const LeaveModel = require('../models/LeaveModel');
+
+const submitLeaveRequest = async (req, res) => {
+  const {
+    empId,
+    empName,
+    empDepartment,
+    leaveType,
+    fromDate,
+    toDate,
+    comment,
+    file,
+  } = req.body;
+
+  const newLeave = new LeaveModel({
+    empId,
+    empName,
+    empDepartment,
+    leaveType,
+    fromDate,
+    toDate,
+    comment,
+    file,
+  });
+
+  try {
+    await newLeave.save();
+    console.log('Data stored successfully:', newLeave);
+
+    res.json({ status: 'Form data received and stored successfully.' });
+  } catch (error) {
+    console.error('Error storing data:', error);
+    res.status(500).json({ status: 'Error storing data.' });
+  }
+};
+
+const getTotalLeaves = async (req, res) =>{
+  try {
+    const employeeId = req.params.employeeId;
+    const totalLeaves = await Leave.countDocuments({ empId: employeeId });
+    res.json({ totalLeaves });
+  } catch (error) {
+    console.error('Error fetching total leaves:', error);
+    res.status(500).json({ error: 'Server Error' });
+  }
+}
+
+const getLeaveData = async (req, res) => {
+  const employeeId = req.params.employeeId;
+  try {
+    const leaveData = await LeaveModel.find({ empId: employeeId }, 'fromDate toDate');
+    res.json(leaveData);
+  } catch (error) {
+    console.error('Error fetching leave data:', error);
+    res.status(500).send('Error fetching leave data');
+  }
+};
+
+module.exports = {
+  submitLeaveRequest,getTotalLeaves,getLeaveData
+};
+
+
+
+const express = require('express');
+const router = express.Router();
+const leaveController = require('../controllers/LeaveController');
+
+// Define routes
+router.post('/Leave', leaveController.submitLeaveRequest);
+router.get('/total_leaves/:employeeId', leaveController.getTotalLeaves);
+router.get('/leave_data/:employeeId', leaveController.getLeaveData);
+
+module.exports = router;

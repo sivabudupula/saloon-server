@@ -1,0 +1,154 @@
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import "./Attendance.css";
+import Sidebar from "../../Sidebar";
+import SideBaradmin from "../../SideBaradmin";
+
+const Attendance = () => {
+  const [selectedDepartment, setSelectedDepartment] = useState("All Department");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [employeeList, setEmployeeList] = useState([]);
+  const [showTable, setShowTable] = useState(false);
+
+  const handleButtonClick = () => {
+    let url = "http://localhost:5000/attendance_data"; // Backend endpoint URL
+  
+    // Construct query parameters based on selected department and date
+    const queryParams = {};
+    if (selectedDepartment !== "All Department") {
+      queryParams.department = selectedDepartment;
+    }
+    if (selectedDate) {
+      // Format the selected date to mm/dd/yyyy
+      const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      queryParams.date = formattedDate;
+    }
+  
+    // Append query parameters to the URL
+    const queryString = new URLSearchParams(queryParams).toString();
+    if (queryString) {
+      url += "?" + queryString;
+    }
+  
+    // Log the request URL
+    console.log("Request URL:", url);
+  
+    // Send GET request to the backend
+    fetch(url)
+      .then((res) => res.json())
+      .then(
+        (data) => {
+          setEmployeeList(data);
+          setShowTable(true);
+        },
+        (error) => {
+          console.error("Error fetching employee list:", error);
+        }
+      );
+  };
+  
+  const handleDepartmentChange = (event) => {
+    setSelectedDepartment(event.target.value);
+  };
+
+  const handleDateChange = (event) => {
+    setSelectedDate(event.target.value);
+  };
+
+  return (
+    <div className="mothercontainer-admin">
+      <SideBaradmin />
+      <div className="home2s">
+        <div className="mastercontainer324">
+          <div className="outsideborder3s">
+            <h1 className="attendance3s">Daily Attendance</h1>
+            <div className="header3s">
+              <div className="fields3s">
+                <h1 className="employee3s">Employees By Department</h1>
+                <select
+                  value={selectedDepartment}
+                  onChange={handleDepartmentChange}
+                >
+                  <option value="All Department">All Department</option>
+                  <option value="FULLSTACK DEVELOPER">Full Stack Development</option>
+                  <option value="Mobile App Development">Mobile App Development</option>
+                  <option value="Data Science">Data Science</option>
+                  <option value="Data Analyst">Data Analyst</option>
+                  <option value="Digital Marketing">Digital Marketing</option>
+                </select>
+              </div>
+              <div className="fields3s">
+                <h1 className="employee3s">Date</h1>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={handleDateChange}
+                />
+              </div>
+              <div>
+                <button onClick={handleButtonClick}>Get Employee List</button>
+              </div>
+            </div>
+          </div>
+          {showTable && (
+            <div className="outsideborder23s">
+              <h2>Employee List</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Employee ID</th>
+                    <th>Department</th>
+                    <th>Start Date</th>
+                    <th>Start Time</th>
+                    <th>Break In Time</th>
+                    <th>Break Out Time</th>
+                    <th>End Date</th>
+                    <th>End Time</th>
+                    <th>Total Work Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employeeList.map((employee, index) => (
+                    <tr key={index}>
+                      <td>{employee.employeeId}</td>
+                      <td>{employee.department}</td>
+                      <td>{employee.startDate}</td>
+                      <td>{employee.startTime}</td>
+                      <td>{employee.breakInTime}</td>
+                      <td>{employee.breakOutTime}</td>
+                      <td>{employee.endDate}</td>
+                      <td>{employee.endTime}</td>
+                      <td>{employee.totalWorkTime}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Attendance;
+
+
+
+
+
+
+
+
+ startTime: startTime.time,
+  startDate: formatDateWithZeroPadding(startTime.date),
+  endTime: formattedEndTime, 
+  endDate: formatDateWithZeroPadding(currentDate),
+
+
+
+

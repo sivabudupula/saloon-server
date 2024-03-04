@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-  const customerSchema = new mongoose.Schema({
+const customerSchema = new mongoose.Schema({
   customerId: String,
   name: String,
   dob: String,
@@ -8,8 +8,14 @@ const mongoose = require('mongoose');
   address: String,
   phone: String,
   profilePhoto: String,
-  createdBy: { type: mongoose.Schema.Types.ObjectId,ref: "Register"} ,  
-    
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    refPath: 'createdByModel' // Dynamic reference path
+  },
+  createdByModel: {
+    type: String,
+    enum: ['Register', 'Employee'] // Specify possible models
+  },
   
   appointments: [{
     name: String,

@@ -1,0 +1,149 @@
+ const handleActivate = async (employeeId) => {
+    try {
+      const confirmActivate = window.confirm(
+        "Are you sure you want to activate this employee?"
+      );
+
+      if (confirmActivate) {
+        await axios.put(
+         ` ${ BASE_URL }/employee_data/${employeeId}/activate_deactivate`,
+          { isActive: true }
+        );
+        fetchEmployees();
+        toast.success("Employee activated successfully!");
+      } else {
+        // User clicked Cancel
+        console.log("Activation cancelled by user");
+      }
+    } catch (error) {
+      console.error("Error activating employee:", error);
+      toast.error("Error activating employee. Please check the console for details.");
+    }
+  };
+
+  const handleDeactivate = async (employeeId) => {
+    try {
+      const confirmDeactivate = window.confirm(
+        "Are you sure you want to deactivate this employee?"
+      );
+
+      if (confirmDeactivate) {
+        await axios.put(
+          `${ BASE_URL }/employee_data/${employeeId}/activate_deactivate`,
+          { isActive: false }
+        );
+        fetchEmployees();
+        toast.success("Employee deactivated successfully!");
+      } else {
+        // User clicked Cancel
+        console.log("Deactivation cancelled by user");
+      }
+    } catch (error) {
+      console.error("Error deactivating employee:", error);
+      toast.error("Error deactivating employee. Please check the console for details.");
+    }
+  };
+
+
+
+
+
+ <button
+                    className={`activate-deactivate-button ${
+                      employee.isActive ? "active12" : "inactive12"
+                    }`}
+                    onClick={() =>
+                      employee.isActive
+                        ? handleDeactivate(employee.employeeid)
+                        : handleActivate(employee.employeeid)
+                    }
+                  >
+                    {employee.isActive ? "Deactivate" : "Activate"}
+                  </button>
+
+
+model:
+
+ role: {
+    type: String,
+    default: "employee",
+  },
+  isActive:{
+    type: Boolean,
+    default: true,
+  },
+
+
+
+controller:
+
+
+const loginEmployeeOne = async (req, res) => {
+  const { employeeid, password } = req.body;
+
+  try {
+    const employee = await Employee.findOne({ employeeid });
+
+    console.log(employee.isActive);
+
+    // Check if the employee exists and the passwords match
+    if (!employee || employee.password !== password || !employee.isActive) {
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
+    }
+
+    // Include any other necessary employee information
+    const user = {
+      role: 'employee', 
+      employeeid: employee.employeeid,
+      fullname: employee.fullname,
+      email: employee.email,
+      department: employee.department,
+      desigination:employee.desigination,
+
+    };
+
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+
+
+const activateDeactivateEmployee = async (req, res) => {
+  const { id } = req.params;
+  const { isActive } = req.body;
+  
+
+  try {
+    const updatedEmployee = await Employee.findOneAndUpdate(
+      { employeeid: id },
+      { isActive },
+      { new: true }
+    );
+
+    if (!updatedEmployee) {
+      return res.status(404).json({ message: `Employee with ID ${id} not found for activation/deactivation` });
+    }
+
+    const status = updatedEmployee.isActive ? 'active' : 'inactive';
+
+    res.status(200).json({
+      message: `Employee ${status} successfully`,
+      isActive: updatedEmployee.isActive,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
+
+
+routes:
+
+
+
+router.put('/employee_data/:id/activate_deactivate', EmployeeController.activateDeactivateEmployee);
