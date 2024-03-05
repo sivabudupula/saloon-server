@@ -44,7 +44,7 @@ exports.CreateAppointment = async (req, res) => {
     // Save the updated customer document
     await customer.save();
 
-    console.log('Appointment data saved successfully:', appointmentData);
+    // console.log('Appointment data saved successfully:', appointmentData);
 
     res.status(201).json(appointmentData);
   } catch (error) {

@@ -64,7 +64,7 @@ exports.CreateCustomer= async (req, res) => {
       });
       
   
-      console.log('Populated customers:', populatedCustomers);
+      // console.log('Populated customers:', populatedCustomers);
   
   
       res.json(populatedCustomers);
