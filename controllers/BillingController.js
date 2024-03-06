@@ -2,16 +2,26 @@ const Customer = require('../models/CustomerModel');
 const Product = require('../models/ProductModel');
 
 exports.CreateBill= async (req, res) => {
+  const userId = req.user.id;
     const customerId = req.params.id; // Use "_id" as the parameter name
-    const billingData = req.body;
-    console.log(req.params.id);
+    let billingData = req.body;
     
     try {
+
+     
       const customer = await Customer.findOne({ _id:customerId}); // Use "_id" to find the customer
       if (!customer) {
         console.log('Customer not found for _id:', customerId);
         return res.status(404).json({ error: 'Customer not found.' });
       }
+
+
+      billingData = {
+        ...billingData,
+        createdBy: userId,
+         // Assuming createdByModel should be 'User' for userId
+      };
+  
   
       // Add the new appointment to the customer's appointments array
       customer.billing.push(billingData);

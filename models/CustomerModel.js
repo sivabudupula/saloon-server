@@ -16,6 +16,8 @@ const customerSchema = new mongoose.Schema({
     type: String,
     enum: ['Register', 'Employee'] // Specify possible models
   },
+
+
   
   appointments: [{
     name: String,
@@ -41,6 +43,15 @@ const customerSchema = new mongoose.Schema({
     gstNumber: String, // Add gstNumber field
     paymentMethod:String,
     totalAmount: Number,
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      refPath: 'createdByModel' // Dynamic reference path
+    },
+    createdByModel: {
+      type: String,
+      enum: ['Register', 'Employee'] // Specify possible models
+    },
+  
   }], 
 });
 
