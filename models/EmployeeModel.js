@@ -17,6 +17,7 @@ const employeeSchema = new mongoose.Schema({
     isActive:{type:Boolean,default:true},
   });
 
-  module.exports  = mongoose.model('Employee', employeeSchema);
+  const Employee  = mongoose.model('Employee', employeeSchema);
   
+  module.exports = Employee;
   

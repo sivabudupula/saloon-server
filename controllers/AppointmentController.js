@@ -55,29 +55,40 @@ exports.CreateAppointment = async (req, res) => {
 };
 
   exports.UpdateAppointment= async (req, res) => {
-    const propertyId = req.params.id;
+    console.log(req.body);
+    const customerId = req.params.id;
+    
+    const appntId = req.params.appntId;
     const updatedData = req.body;
   
     try {
+      // Find the customer by customerId
+      const customer = await Customer.findById(customerId );
 
-      console.log('propertyId:', propertyId);
-        console.log('updatedData:', updatedData);
-
-      const updatedProperty = await Customer.findByIdAndUpdate(
-        propertyId,
-        updatedData,
-        { new: true }
-      );
-  
-      if (!updatedProperty) {
-        return res.status(404).json({ error: 'Property not found.' });
+      if (!customer) {
+          return res.status(404).json({ message: 'Customer not found' });
       }
-  
-      res.status(200).json({ message: 'Property updated successfully.' });
-    } catch (error) {
-      console.error('Error updating property:', error);
-      res.status(500).json({ error: 'Internal server error.' });
-    }
+
+      const appointmentObject = customer.appointments.id(appntId);
+      
+      if (!appointmentObject) {
+          return res.status(404).json({ message: 'Appointment object not found' });
+      }
+
+      // Update the createdBy field to userId
+      // appointmentObject.createdBy = userId;
+
+      // Update other fields with the provided updatedData
+      Object.assign( appointmentObject,updatedData);
+
+      // Save the updated customer object
+      await customer.save();
+
+      res.status(200).json({ message: 'Appointment object updated successfully' });
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Internal Server Error' });
+  }
   };
 
 

@@ -6,7 +6,7 @@ const Middleware = require('../controllers/Middleware');
 
 // Define routes for appointments
 router.post('/customers/:id/billing',Middleware, BillingController.CreateBill);
-router.put('/customers/billing/:id', BillingController.UpdateBill);
+router.put('/customers/billing/:id/:billId',Middleware, BillingController.UpdateBill);
 
 
 module.exports = router;
